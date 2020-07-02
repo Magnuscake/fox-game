@@ -4,7 +4,7 @@
 		"no-console": 1
 	},
 	"plugins": ["import"],
-	"parseOptions": {
+	"parserOptions": {
 		"ecmaVersion": 2018,
 		"sourceType": "module"
 	},
