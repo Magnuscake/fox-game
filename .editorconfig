@@ -1,0 +1,11 @@
+# This is not essential but it is easier to setup the project
+# espically for editors that don't have a prettier config (vim, emacs)
+
+root = true # this is the root most format
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+indent_size = 2
+indent_style = tab
