@@ -117,42 +117,216 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"gameState.js":[function(require,module,exports) {
+})({"ui.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.default = void 0;
-const gameState = {
-  current: 'INIT',
-  clock: 1,
+exports.togglePoopBag = exports.modScene = exports.modFox = void 0;
 
-  tick() {
-    this.clock++;
-    console.log('clock', this.clock);
-    return this.clock;
-  },
-
-  handleUserAction(icon) {
-    console.log(icon);
-  }
-
+const modFox = function modFox(state) {
+  document.querySelector('.fox').className = `fox fox-${state}`;
 };
-var _default = gameState;
-exports.default = _default;
+
+exports.modFox = modFox;
+
+const modScene = function modScene(state) {
+  document.querySelector('.game').className = `game ${state}`;
+};
+
+exports.modScene = modScene;
+
+const togglePoopBag = function togglePoopBag(show) {
+  document.querySelector('.poop-bag').classList.toggle('hidden', !show);
+};
+
+exports.togglePoopBag = togglePoopBag;
 },{}],"constants.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.ICONS = exports.TICK_RATE = void 0;
-const TICK_RATE = 3000;
+exports.getNextPoopTime = exports.getNextDieTime = exports.getNextHungerTime = exports.NIGHT_LENGTH = exports.DAY_LENGTH = exports.SCENES = exports.RAIN_CHANCE = exports.ICONS = exports.TICK_RATE = void 0;
+const TICK_RATE = 1000;
 exports.TICK_RATE = TICK_RATE;
 const ICONS = ['fish', 'poop', 'weather'];
 exports.ICONS = ICONS;
-},{}],"buttons.js":[function(require,module,exports) {
+const RAIN_CHANCE = 0.2;
+exports.RAIN_CHANCE = RAIN_CHANCE;
+const SCENES = ['day', 'rain'];
+exports.SCENES = SCENES;
+const DAY_LENGTH = 60;
+exports.DAY_LENGTH = DAY_LENGTH;
+const NIGHT_LENGTH = 5;
+exports.NIGHT_LENGTH = NIGHT_LENGTH;
+
+const getNextHungerTime = clock => Math.floor(Math.random() * 3) + 5 + clock;
+
+exports.getNextHungerTime = getNextHungerTime;
+
+const getNextDieTime = clock => Math.floor(Math.random() * 3) + 3 + clock;
+
+exports.getNextDieTime = getNextDieTime;
+
+const getNextPoopTime = clock => Math.floor(Math.random() * 3) + 4 + clock;
+
+exports.getNextPoopTime = getNextPoopTime;
+},{}],"gameState.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = exports.handleUserAction = void 0;
+
+var _ui = require("./ui");
+
+var _constants = require("./constants");
+
+const gameState = {
+  current: 'INIT',
+  clock: 1,
+  wakeTime: -1,
+  sleepTime: -1,
+  hungryTime: -1,
+  dieTime: -1,
+  timeToStartCelebrating: -1,
+  timeToEndCelebrating: -1,
+
+  tick() {
+    this.clock++;
+    console.log('clock', this.clock);
+
+    if (this.clock === this.wakeTime) {
+      this.wake();
+    } else if (this.clock === this.sleepTime) {
+      this.sleep();
+    } else if (this.clock === this.hungryTime) {
+      this.getHungry();
+    } else if (this.clock === this.dieTime) {
+      this.die();
+    } else if (this.clock === this.timeToStartCelebrating) {
+      this.startCelebrating();
+    } else if (this.clock === this.timeToEndCelebrating) {
+      this.endCelebrating();
+    }
+
+    return this.clock;
+  },
+
+  startGame() {
+    this.current = 'HATCHING';
+    this.wakeTime = this.clock + 3;
+    (0, _ui.modFox)('egg');
+    (0, _ui.modScene)('day');
+  },
+
+  wake() {
+    console.log('awoken');
+    this.current = 'IDLING';
+    this.wakeTime = -1;
+    this.scene = Math.random() > _constants.RAIN_CHANCE ? 0 : 1;
+    (0, _ui.modScene)(_constants.SCENES[this.scene]);
+    this.sleepTime = this.clock + _constants.DAY_LENGTH;
+    this.hungryTime = (0, _constants.getNextHungerTime)(this.clock);
+    this.determineFoxState();
+  },
+
+  sleep() {
+    this.state = 'SLEEP';
+    (0, _ui.modFox)('sleep');
+    (0, _ui.modScene)('night');
+    this.wakeTime = this.clock + _constants.DAY_LENGTH;
+  },
+
+  getHungry() {
+    this.current = 'HUNGRY';
+    this.dieTime = (0, _constants.getNextDieTime)(this.clock);
+    this.hungryTime = -1;
+    (0, _ui.modFox)('hungry');
+  },
+
+  die() {
+    console.log('die');
+  },
+
+  startCelebrating() {
+    this.current = 'CELEBRATING';
+    (0, _ui.modFox)('celebrate');
+    this.timeToStartCelebrating = -1;
+    this.timeToEndCelebrating = this.clock + 2;
+  },
+
+  endCelebrating() {
+    this.timeToEndCelebrating = -1;
+    this.current = 'IDLING';
+    this.determineFoxState();
+  },
+
+  determineFoxState() {
+    if (this.current === 'IDLING') {
+      if (_constants.SCENES[this.scene] === 'rain') {
+        (0, _ui.modFox)('rain');
+      } else {
+        (0, _ui.modFox)('idling');
+      }
+    }
+  },
+
+  handleUserAction(icon) {
+    if (['SLEEP', 'FEEDING', 'CELEBRATING', 'HATCHING'].includes(this.current)) {
+      // do nothing
+      return;
+    }
+
+    if (this.current === 'INIT' || this.current === 'DEAD') {
+      this.startGame();
+      return;
+    }
+
+    switch (icon) {
+      case 'weather':
+        this.changeWeather();
+        break;
+
+      case 'poop':
+        this.cleanUpPoop();
+        break;
+
+      case 'fish':
+        this.feed();
+        break;
+    }
+  },
+
+  changeWeather() {
+    return;
+  },
+
+  cleanUpPoop() {
+    return;
+  },
+
+  feed() {
+    if (this.current !== 'HUNGRY') {
+      return;
+    }
+
+    this.current = 'FEEDING';
+    this.dieTime = -1;
+    this.poopTime = (0, _constants.getNextPoopTime)(this.clock);
+    (0, _ui.modFox)('eating');
+    this.timeToStartCelebrating = this.clock + 2;
+  }
+
+};
+const handleUserAction = gameState.handleUserAction.bind(gameState);
+exports.handleUserAction = handleUserAction;
+var _default = gameState;
+exports.default = _default;
+},{"./ui":"ui.js","./constants":"constants.js"}],"buttons.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -186,7 +360,7 @@ function initButtons(handleUserAction) {
 },{"./constants":"constants.js"}],"init.js":[function(require,module,exports) {
 "use strict";
 
-var _gameState = _interopRequireDefault(require("./gameState"));
+var _gameState = _interopRequireWildcard(require("./gameState"));
 
 var _constants = require("./constants");
 
@@ -194,9 +368,13 @@ var _buttons = _interopRequireDefault(require("./buttons"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+function _getRequireWildcardCache() { if (typeof WeakMap !== "function") return null; var cache = new WeakMap(); _getRequireWildcardCache = function () { return cache; }; return cache; }
+
+function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } if (obj === null || typeof obj !== "object" && typeof obj !== "function") { return { default: obj }; } var cache = _getRequireWildcardCache(); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj.default = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
+
 async function init() {
   console.log('starting game');
-  (0, _buttons.default)(_gameState.default.handleUserAction);
+  (0, _buttons.default)(_gameState.handleUserAction);
   let nextTimeToTick = Date.now();
 
   function nextAnimationFrame() {
@@ -243,7 +421,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "60376" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "64186" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
